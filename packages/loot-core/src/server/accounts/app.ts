@@ -39,6 +39,14 @@ import * as link from './link';
 import { getStartingBalancePayee } from './payees';
 import * as bankSync from './sync';
 
+// Shared base type for link account parameters
+type LinkAccountBaseParams = {
+  upgradingId?: AccountEntity['id'];
+  offBudget?: boolean;
+  startingDate?: string;
+  startingBalance?: number;
+};
+
 export type AccountHandlers = {
   'account-update': typeof updateAccount;
   'accounts-get': typeof getAccounts;
@@ -85,8 +93,31 @@ async function updateAccount({
   return {};
 }
 
-async function getAccounts() {
-  return db.getAccounts();
+async function getAccounts(): Promise<AccountEntity[]> {
+  const dbAccounts = await db.getAccounts();
+  return dbAccounts.map(
+    dbAccount =>
+      ({
+        id: dbAccount.id,
+        name: dbAccount.name,
+        offbudget: dbAccount.offbudget,
+        closed: dbAccount.closed,
+        sort_order: dbAccount.sort_order,
+        last_reconciled: dbAccount.last_reconciled ?? null,
+        tombstone: dbAccount.tombstone,
+        account_id: dbAccount.account_id ?? null,
+        bank: dbAccount.bank ?? null,
+        bankName: dbAccount.bankName ?? null,
+        bankId: dbAccount.bankId ?? null,
+        mask: dbAccount.mask ?? null,
+        official_name: dbAccount.official_name ?? null,
+        balance_current: dbAccount.balance_current ?? null,
+        balance_available: dbAccount.balance_available ?? null,
+        balance_limit: dbAccount.balance_limit ?? null,
+        account_sync_source: dbAccount.account_sync_source ?? null,
+        last_sync: dbAccount.last_sync ?? null,
+      }) satisfies AccountEntity,
+  );
 }
 
 async function getAccountBalance({
@@ -124,11 +155,11 @@ async function linkGoCardlessAccount({
   account,
   upgradingId,
   offBudget = false,
-}: {
+  startingDate,
+  startingBalance,
+}: LinkAccountBaseParams & {
   requisitionId: string;
   account: SyncServerGoCardlessAccount;
-  upgradingId?: AccountEntity['id'] | undefined;
-  offBudget?: boolean | undefined;
 }) {
   let id;
   const bank = await link.findOrCreateBank(account.institution, requisitionId);
@@ -174,6 +205,8 @@ async function linkGoCardlessAccount({
     id,
     account.account_id,
     bank.bank_id,
+    startingDate,
+    startingBalance,
   );
 
   connection.send('sync-event', {
@@ -188,10 +221,10 @@ async function linkSimpleFinAccount({
   externalAccount,
   upgradingId,
   offBudget = false,
-}: {
+  startingDate,
+  startingBalance,
+}: LinkAccountBaseParams & {
   externalAccount: SyncServerSimpleFinAccount;
-  upgradingId?: AccountEntity['id'] | undefined;
-  offBudget?: boolean | undefined;
 }) {
   let id;
 
@@ -244,9 +277,11 @@ async function linkSimpleFinAccount({
     id,
     externalAccount.account_id,
     bank.bank_id,
+    startingDate,
+    startingBalance,
   );
 
-  await connection.send('sync-event', {
+  connection.send('sync-event', {
     type: 'success',
     tables: ['transactions'],
   });
@@ -258,10 +293,10 @@ async function linkPluggyAiAccount({
   externalAccount,
   upgradingId,
   offBudget = false,
-}: {
+  startingDate,
+  startingBalance,
+}: LinkAccountBaseParams & {
   externalAccount: SyncServerPluggyAiAccount;
-  upgradingId?: AccountEntity['id'] | undefined;
-  offBudget?: boolean | undefined;
 }) {
   let id;
 
@@ -314,23 +349,26 @@ async function linkPluggyAiAccount({
     id,
     externalAccount.account_id,
     bank.bank_id,
+    startingDate,
+    startingBalance,
   );
 
-  await connection.send('sync-event', {
+  connection.send('sync-event', {
     type: 'success',
     tables: ['transactions'],
   });
 
   return 'ok';
 }
+
 async function linkAkahuAccount({
   externalAccount,
   upgradingId,
   offBudget = false,
-}: {
+  startingDate,
+  startingBalance,
+}: LinkAccountBaseParams & {
   externalAccount: SyncServerAkahuAccount;
-  upgradingId?: AccountEntity['id'] | undefined;
-  offBudget?: boolean | undefined;
 }) {
   let id;
 
@@ -383,9 +421,11 @@ async function linkAkahuAccount({
     id,
     externalAccount.account_id,
     bank.bank_id,
+    startingDate,
+    startingBalance,
   );
 
-  await connection.send('sync-event', {
+  connection.send('sync-event', {
     type: 'success',
     tables: ['transactions'],
   });
@@ -466,7 +506,7 @@ async function closeAccount({
     if (numTransactions === 0) {
       await db.deleteAccount({ id });
     } else if (forced) {
-      const rows = await db.runQuery<
+      const rows = db.runQuery<
         Pick<db.DbViewTransaction, 'id' | 'transfer_id'>
       >(
         'SELECT id, transfer_id FROM v_transactions WHERE account = ?',
@@ -492,18 +532,18 @@ async function closeAccount({
 
         rows.forEach(row => {
           if (row.transfer_id) {
-            db.updateTransaction({
+            void db.updateTransaction({
               id: row.transfer_id,
               payee: null,
               transfer_id: null,
             });
           }
 
-          db.deleteTransaction({ id: row.id });
+          void db.deleteTransaction({ id: row.id });
         });
 
-        db.deleteAccount({ id });
-        db.deleteTransferPayee({ id: transferPayee.id });
+        void db.deleteAccount({ id });
+        void db.deleteTransferPayee({ id: transferPayee.id });
       });
     } else {
       if (balance !== 0 && transferAccountId == null) {
@@ -674,7 +714,7 @@ async function pollGoCardlessWebToken({
   }
 
   return new Promise(resolve => {
-    getData(data => {
+    void getData(data => {
       if (data.status === 'success') {
         resolve({ data: data.data });
         return;
@@ -833,6 +873,7 @@ async function pluggyAiAccounts() {
     return { error_code: 'TIMED_OUT' };
   }
 }
+
 async function akahuAccounts() {
   const userToken = await asyncStorage.getItem('user-token');
 
@@ -964,24 +1005,37 @@ type SyncError =
       internal?: string;
     };
 
+/**
+ * Type guard to check if an error is a BankSyncError.
+ * Handles both class instances and plain objects with the BankSyncError shape.
+ */
+function isBankSyncError(err: unknown): err is BankSyncError {
+  return (
+    err instanceof BankSyncError ||
+    (typeof err === 'object' &&
+      err !== null &&
+      'type' in err &&
+      err.type === 'BankSyncError')
+  );
+}
+
+/**
+ * Converts a sync error into a standardized SyncError response object.
+ */
 function handleSyncError(
   err: Error | PostError | BankSyncError,
   acct: db.DbAccount,
 ): SyncError {
-  // TODO: refactor bank sync logic to use BankSyncError properly
-  // oxlint-disable-next-line typescript/no-explicit-any
-  if (err instanceof BankSyncError || (err as any)?.type === 'BankSyncError') {
-    const error = err as BankSyncError;
-
+  if (isBankSyncError(err)) {
     const syncError = {
       type: 'SyncError',
       accountId: acct.id,
       message: 'Failed syncing account "' + acct.name + '."',
-      category: error.category,
-      code: error.code,
+      category: err.category,
+      code: err.code,
     };
 
-    if (error.category === 'RATE_LIMIT_EXCEEDED') {
+    if (err.category === 'RATE_LIMIT_EXCEEDED') {
       return {
         ...syncError,
         message: `Failed syncing account ${acct.name}. Rate limit exceeded. Please try again later.`,
@@ -1020,9 +1074,7 @@ async function accountsBankSync({
   const { 'user-id': userId, 'user-key': userKey } =
     await asyncStorage.multiGet(['user-id', 'user-key']);
 
-  const accounts = await db.runQuery<
-    db.DbAccount & { bankId: db.DbBank['bank_id'] }
-  >(
+  const accounts = db.runQuery<db.DbAccount & { bankId: db.DbBank['bank_id'] }>(
     `
     SELECT a.*, b.bank_id as bankId
     FROM accounts a
@@ -1087,9 +1139,7 @@ async function simpleFinBatchSync({
 }): Promise<
   Array<{ accountId: AccountEntity['id']; res: SyncResponseWithErrors }>
 > {
-  const accounts = await db.runQuery<
-    db.DbAccount & { bankId: db.DbBank['bank_id'] }
-  >(
+  const accounts = db.runQuery<db.DbAccount & { bankId: db.DbBank['bank_id'] }>(
     `SELECT a.*, b.bank_id as bankId FROM accounts a
          LEFT JOIN banks b ON a.bank = b.id
          WHERE
