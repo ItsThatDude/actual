@@ -528,9 +528,7 @@ export function useLinkAccountAkahuMutation() {
       console.error('Error linking account to Akahu:', error);
       dispatchErrorNotification(
         dispatch,
-        t(
-          'There was an error linking the account to Akahu. Please try again.',
-        ),
+        t('There was an error linking the account to Akahu. Please try again.'),
         error,
       );
     },
