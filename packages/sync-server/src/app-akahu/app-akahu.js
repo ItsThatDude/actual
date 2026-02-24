@@ -3,7 +3,10 @@ import express from 'express';
 
 import { handleError } from '../app-gocardless/util/handle-error.js';
 import { SecretName, secretsService } from '../services/secrets-service.js';
-import { requestLoggerMiddleware } from '../util/middlewares.js';
+import {
+  requestLoggerMiddleware,
+  validateSessionMiddleware,
+} from '../util/middlewares';
 
 const ACCOUNT_TYPES = Object.freeze({
   CREDIT_CARD: 'CREDITCARD',
@@ -26,6 +29,7 @@ const app = express();
 export { app as handlers };
 app.use(express.json());
 app.use(requestLoggerMiddleware);
+app.use(validateSessionMiddleware);
 
 app.post(
   '/status',
