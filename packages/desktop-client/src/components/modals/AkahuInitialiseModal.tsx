@@ -19,7 +19,7 @@ import {
   ModalHeader,
 } from '@desktop-client/components/common/Modal';
 import { FormField, FormLabel } from '@desktop-client/components/forms';
-import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+import type { Modal as ModalType } from '@desktop-client/modals/modalsSlice';
 
 type AkahuInitialiseModalProps = Extract<
   ModalType,
@@ -139,7 +139,7 @@ export const AkahuInitialiseModal = ({
               autoFocus
               isLoading={isLoading}
               onPress={() => {
-                onSubmit(close);
+                void onSubmit(close);
               }}
             >
               <Trans>Save and continue</Trans>
