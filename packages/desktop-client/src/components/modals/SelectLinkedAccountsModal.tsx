@@ -22,8 +22,8 @@ import type {
 } from 'loot-core/types/models';
 
 import {
-  useLinkAccountMutation,
   useLinkAccountAkahuMutation,
+  useLinkAccountMutation,
   useLinkAccountPluggyAiMutation,
   useLinkAccountSimpleFinMutation,
   useUnlinkAccountMutation,
