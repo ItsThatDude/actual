@@ -6,6 +6,9 @@ import { ButtonWithLoading } from '@actual-app/components/button';
 import { Input } from '@actual-app/components/input';
 import { Text } from '@actual-app/components/text';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import { getSecretsError } from '@actual-app/core/shared/errors';
+
 import { Error as ErrorAlert } from '#components/alerts';
 import { Link } from '#components/common/Link';
 import {
@@ -16,8 +19,6 @@ import {
 } from '#components/common/Modal';
 import { FormField, FormLabel } from '#components/forms';
 import type { Modal as ModalType } from '#modals/modalsSlice';
-import { send } from '@actual-app/core/platform/client/connection';
-import { getSecretsError } from '@actual-app/core/shared/errors';
 
 type AkahuInitialiseModalProps = Extract<
   ModalType,
@@ -79,11 +80,11 @@ export const AkahuInitialiseModal = ({
 
   return (
     <Modal name="akahu-init" containerProps={{ style: { width: 300 } }}>
-      {({ state: { close } }) => (
+      {({ state }) => (
         <>
           <ModalHeader
             title={t('Set-up Akahu')}
-            rightContent={<ModalCloseButton onPress={close} />}
+            rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
           <View style={{ display: 'flex', gap: 10 }}>
             <Text>
@@ -137,7 +138,7 @@ export const AkahuInitialiseModal = ({
               autoFocus
               isLoading={isLoading}
               onPress={() => {
-                onSubmit(close);
+                void onSubmit(() => state.close());
               }}
             >
               <Trans>Save and continue</Trans>

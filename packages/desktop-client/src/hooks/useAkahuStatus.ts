@@ -20,7 +20,7 @@ export function useAkahuStatus() {
     }
 
     if (status === 'online') {
-      fetch();
+      void fetch();
     }
   }, [status]);
 

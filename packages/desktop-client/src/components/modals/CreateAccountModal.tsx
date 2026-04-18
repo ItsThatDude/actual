@@ -386,11 +386,11 @@ export function CreateAccountModal({
   };
 
   const onAkahuReset = () => {
-    send('secret-set', {
+    void send('secret-set', {
       name: 'akahu_userToken',
       value: null,
     }).then(() => {
-      send('secret-set', {
+      void send('secret-set', {
         name: 'akahu_appToken',
         value: null,
       }).then(() => {
