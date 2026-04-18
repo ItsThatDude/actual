@@ -1,12 +1,12 @@
 import { AkahuClient } from 'akahu';
 import express from 'express';
 
-import { handleError } from '../app-gocardless/util/handle-error.js';
-import { SecretName, secretsService } from '../services/secrets-service.js';
+import { handleError } from '#app-gocardless/util/handle-error';
+import { SecretName, secretsService } from '#services/secrets-service';
 import {
   requestLoggerMiddleware,
   validateSessionMiddleware,
-} from '../util/middlewares';
+} from '#util/middlewares';
 
 const ACCOUNT_TYPES = Object.freeze({
   CREDIT_CARD: 'CREDITCARD',

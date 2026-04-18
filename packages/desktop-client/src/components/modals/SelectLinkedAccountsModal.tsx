@@ -21,8 +21,8 @@ import type {
 import { format as formatDate, parseISO } from 'date-fns';
 
 import {
-  useLinkAccountMutation,
   useLinkAccountAkahuMutation,
+  useLinkAccountMutation,
   useLinkAccountPluggyAiMutation,
   useLinkAccountSimpleFinMutation,
   useUnlinkAccountMutation,
