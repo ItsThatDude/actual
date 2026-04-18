@@ -1,5 +1,5 @@
-import { firstDayOfMonth } from 'loot-core/shared/months';
-import type { Template } from 'loot-core/types/models/templates';
+import { firstDayOfMonth } from '@actual-app/core/shared/months';
+import type { Template } from '@actual-app/core/types/models/templates';
 
 import type { Action } from './actions';
 import type { DisplayTemplateType, ReducerState } from './constants';
@@ -68,7 +68,9 @@ export const getInitialState = (template: Template | null): ReducerState => {
     case 'error':
       throw new Error('An error occurred while parsing the template');
     default:
-      throw new Error(`Unknown template type: ${type satisfies undefined}`);
+      throw new Error(
+        `Unknown template type: ${String(type satisfies undefined)}`,
+      );
   }
 };
 
@@ -168,7 +170,9 @@ const changeType = (
       };
     default:
       // Make sure we're not missing any cases
-      throw new Error(`Unknown display type: ${visualType satisfies never}`);
+      throw new Error(
+        `Unknown display type: ${String(visualType satisfies never)}`,
+      );
   }
 };
 
@@ -251,6 +255,6 @@ export const templateReducer = (
       return mapTemplateTypesForUpdate(state, action.payload);
     default:
       // Make sure we're not missing any cases
-      throw new Error(`Unknown display type: ${type satisfies never}`);
+      throw new Error(`Unknown display type: ${String(type satisfies never)}`);
   }
 };

@@ -1,7 +1,5 @@
 // @ts-strict-ignore
-import type { ImportTransactionsOpts } from '@actual-app/api';
-
-import type { ImportTransactionsResult } from '../server/accounts/app';
+import type { ImportTransactionsResult } from '#server/accounts/app';
 import type {
   APIAccountEntity,
   APICategoryEntity,
@@ -10,18 +8,29 @@ import type {
   APIPayeeEntity,
   APIScheduleEntity,
   APITagEntity,
-} from '../server/api-models';
-import type { BudgetFileHandlers } from '../server/budgetfiles/app';
-import type { batchUpdateTransactions } from '../server/transactions';
-import type { QueryState } from '../shared/query';
+} from '#server/api-models';
+import type { BudgetFileHandlers } from '#server/budgetfiles/app';
+import type { batchUpdateTransactions } from '#server/transactions';
+import type { QueryState } from '#shared/query';
 
 import type {
+  AccountEntity,
+  CategoryGroupEntity,
   ImportTransactionEntity,
+  NearbyPayeeEntity,
   NewRuleEntity,
+  PayeeEntity,
+  PayeeLocationEntity,
   RuleEntity,
   ScheduleEntity,
   TransactionEntity,
 } from './models';
+
+export type ImportTransactionsOpts = {
+  defaultCleared?: boolean;
+  dryRun?: boolean;
+  reimportDeleted?: boolean;
+};
 
 export type ApiHandlers = {
   'api/batch-budget-start': () => Promise<void>;
@@ -84,10 +93,10 @@ export type ApiHandlers = {
   'api/budget-reset-hold': (arg: { month: string }) => Promise<void>;
 
   'api/transactions-export': (arg: {
-    transactions;
-    categoryGroups;
-    payees;
-    accounts;
+    transactions: TransactionEntity[];
+    categoryGroups: CategoryGroupEntity[];
+    payees: PayeeEntity[];
+    accounts: AccountEntity[];
   }) => Promise<unknown>;
 
   'api/transactions-import': (arg: {
@@ -112,9 +121,7 @@ export type ApiHandlers = {
 
   'api/transaction-update': (arg: {
     id: TransactionEntity['id'];
-    fields;
-    // TODO: fix me
-    // fields: Partial<TransactionEntity>;
+    fields: Partial<TransactionEntity>;
   }) => Promise<Awaited<ReturnType<typeof batchUpdateTransactions>>['updated']>;
 
   'api/transaction-delete': (arg: {
@@ -136,9 +143,7 @@ export type ApiHandlers = {
 
   'api/account-update': (arg: {
     id: APIAccountEntity['id'];
-    fields;
-    // TODO: fix me
-    // fields: Partial<APIAccountEntity>;
+    fields: Partial<APIAccountEntity>;
   }) => Promise<void>;
 
   'api/account-close': (arg: {
@@ -168,9 +173,7 @@ export type ApiHandlers = {
 
   'api/category-group-update': (arg: {
     id: APICategoryGroupEntity['id'];
-    fields;
-    // TODO: fix me
-    // fields: Partial<APICategoryGroupEntity>;
+    fields: Partial<APICategoryGroupEntity>;
   }) => Promise<void>;
 
   'api/category-group-delete': (arg: {
@@ -184,9 +187,7 @@ export type ApiHandlers = {
 
   'api/category-update': (arg: {
     id: APICategoryEntity['id'];
-    fields;
-    // TODO: fix me
-    // fields: Partial<APICategoryEntity>;
+    fields: Partial<APICategoryEntity>;
   }) => Promise<void>;
 
   'api/category-delete': (arg: {
@@ -204,9 +205,7 @@ export type ApiHandlers = {
 
   'api/payee-update': (arg: {
     id: APIPayeeEntity['id'];
-    fields;
-    // TODO: fix me
-    // fields: Partial<APIPayeeEntity>;
+    fields: Partial<APIPayeeEntity>;
   }) => Promise<void>;
 
   'api/payee-delete': (arg: { id: APIPayeeEntity['id'] }) => Promise<void>;
@@ -228,6 +227,24 @@ export type ApiHandlers = {
   }) => Promise<void>;
 
   'api/tag-delete': (arg: { id: APITagEntity['id'] }) => Promise<void>;
+
+  'api/payee-location-create': (arg: {
+    payeeId: string;
+    latitude: number;
+    longitude: number;
+  }) => Promise<string>;
+
+  'api/payee-locations-get': (arg: {
+    payeeId: string;
+  }) => Promise<PayeeLocationEntity[]>;
+
+  'api/payee-location-delete': (arg: { id: string }) => Promise<void>;
+
+  'api/payees-get-nearby': (arg: {
+    latitude: number;
+    longitude: number;
+    maxDistance?: number;
+  }) => Promise<NearbyPayeeEntity[]>;
 
   'api/rules-get': () => Promise<RuleEntity[]>;
 

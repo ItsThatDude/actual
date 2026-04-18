@@ -1,5 +1,5 @@
-import { getAccountDb, isAdmin } from '../../account-db';
-import { FileNotFound, GenericFileError } from '../errors';
+import { getAccountDb, isAdmin } from '#account-db';
+import { FileNotFound, GenericFileError } from '#app-sync/errors';
 
 class FileBase {
   constructor(
@@ -142,7 +142,7 @@ class FilesService {
        WHERE files.deleted = 0 LIMIT ?`,
             [userId, userId, limit],
           )
-    ).map(this.validate);
+    ).map(item => this.validate(item));
   }
 
   findUsersWithAccess(fileId) {

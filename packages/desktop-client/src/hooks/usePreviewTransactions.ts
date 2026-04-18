@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { send } from 'loot-core/platform/client/connection';
-import { computeSchedulePreviewTransactions } from 'loot-core/shared/schedules';
-import { ungroupTransactions } from 'loot-core/shared/transactions';
-import type { IntegerAmount } from 'loot-core/shared/util';
-import type { ScheduleEntity, TransactionEntity } from 'loot-core/types/models';
+import { send } from '@actual-app/core/platform/client/connection';
+import { computeSchedulePreviewTransactions } from '@actual-app/core/shared/schedules';
+import { ungroupTransactions } from '@actual-app/core/shared/transactions';
+import type { IntegerAmount } from '@actual-app/core/shared/util';
+import type {
+  ScheduleEntity,
+  TransactionEntity,
+} from '@actual-app/core/types/models';
 
 import { useCachedSchedules } from './useCachedSchedules';
 import { useSyncedPref } from './useSyncedPref';
@@ -47,17 +50,8 @@ export function usePreviewTransactions({
   } = useCachedSchedules();
   const [isLoading, setIsLoading] = useState(isSchedulesLoading);
   const [error, setError] = useState<Error | undefined>(undefined);
-  const [runningBalances, setRunningBalances] = useState<
-    Map<TransactionEntity['id'], IntegerAmount>
-  >(new Map());
 
   const [upcomingLength] = useSyncedPref('upcomingScheduledTransactionLength');
-
-  // We don't want to re-render if options changes.
-  // Putting options in a ref will prevent that and
-  // allow us to use the latest options on next render.
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
 
   const scheduleTransactions = useMemo(() => {
     if (isSchedulesLoading) {
@@ -109,21 +103,6 @@ export function usePreviewTransactions({
           const ungroupedTransactions = ungroupTransactions(withDefaults);
           setPreviewTransactions(ungroupedTransactions);
 
-          if (optionsRef.current?.calculateRunningBalances) {
-            setRunningBalances(
-              // We always use the bottom up calculation for preview transactions
-              // because the hook controls the order of the transactions. We don't
-              // need to provide a custom way for consumers to calculate the running
-              // balances, at least as of writing.
-              calculateRunningBalancesBottomUp(
-                ungroupedTransactions,
-                // Preview transactions are behaves like 'all' splits
-                'all',
-                optionsRef.current?.startingBalance,
-              ),
-            );
-          }
-
           setIsLoading(false);
         }
       })
@@ -138,6 +117,24 @@ export function usePreviewTransactions({
       isUnmounted = true;
     };
   }, [scheduleTransactions, schedules, statuses, upcomingLength]);
+
+  const runningBalances = useMemo(() => {
+    if (!options?.calculateRunningBalances) {
+      return new Map<TransactionEntity['id'], IntegerAmount>();
+    }
+
+    // We always use the bottom up calculation for preview transactions
+    // because the hook controls the order of the transactions.
+    return calculateRunningBalancesBottomUp(
+      previewTransactions,
+      'all',
+      options?.startingBalance,
+    );
+  }, [
+    previewTransactions,
+    options?.calculateRunningBalances,
+    options?.startingBalance,
+  ]);
 
   const returnError = error || scheduleQueryError;
   return {

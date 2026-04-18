@@ -1,11 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { QueryClient, QueryKey } from '@tanstack/react-query';
-import { v4 as uuidv4 } from 'uuid';
-
-import { send } from 'loot-core/platform/client/connection';
-import type { SyncResponseWithErrors } from 'loot-core/server/accounts/app';
+import { send } from '@actual-app/core/platform/client/connection';
+import type { SyncResponseWithErrors } from '@actual-app/core/server/accounts/app';
 import type {
   AccountEntity,
   CategoryEntity,
@@ -14,7 +10,17 @@ import type {
   SyncServerPluggyAiAccount,
   SyncServerSimpleFinAccount,
   TransactionEntity,
-} from 'loot-core/types/models';
+} from '@actual-app/core/types/models';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { QueryClient, QueryKey } from '@tanstack/react-query';
+
+import { sync } from '#app/appSlice';
+import { useAccounts } from '#hooks/useAccounts';
+import { addNotification } from '#notifications/notificationsSlice';
+import { payeeQueries } from '#payees';
+import { useDispatch, useStore } from '#redux';
+import type { AppDispatch } from '#redux/store';
+import { setNewTransactions } from '#transactions/transactionsSlice';
 
 import {
   markAccountFailed,
@@ -23,14 +29,6 @@ import {
   setAccountsSyncing,
 } from './accountsSlice';
 import { accountQueries } from './queries';
-
-import { sync } from '@desktop-client/app/appSlice';
-import { useAccounts } from '@desktop-client/hooks/useAccounts';
-import { addNotification } from '@desktop-client/notifications/notificationsSlice';
-import { payeeQueries } from '@desktop-client/payees';
-import { useDispatch, useStore } from '@desktop-client/redux';
-import type { AppDispatch } from '@desktop-client/redux/store';
-import { setNewTransactions } from '@desktop-client/transactions/transactionsSlice';
 
 const invalidateQueries = (queryClient: QueryClient, queryKey?: QueryKey) => {
   void queryClient.invalidateQueries({
@@ -46,7 +44,7 @@ const dispatchErrorNotification = (
   dispatch(
     addNotification({
       notification: {
-        id: uuidv4(),
+        id: crypto.randomUUID(),
         type: 'error',
         message,
         pre: error ? error.message : undefined,
@@ -208,6 +206,7 @@ export function useMoveAccountMutation() {
 type ImportPreviewTransactionsPayload = {
   accountId: string;
   transactions: TransactionEntity[];
+  reimportDeleted?: boolean;
 };
 
 export function useImportPreviewTransactionsMutation() {
@@ -219,6 +218,7 @@ export function useImportPreviewTransactionsMutation() {
     mutationFn: async ({
       accountId,
       transactions,
+      reimportDeleted,
     }: ImportPreviewTransactionsPayload) => {
       const { errors = [], updatedPreview } = await send(
         'transactions-import',
@@ -226,6 +226,7 @@ export function useImportPreviewTransactionsMutation() {
           accountId,
           transactions,
           isPreview: true,
+          opts: reimportDeleted !== undefined ? { reimportDeleted } : undefined,
         },
       );
 
@@ -260,6 +261,7 @@ type ImportTransactionsPayload = {
   accountId: string;
   transactions: TransactionEntity[];
   reconcile: boolean;
+  reimportDeleted?: boolean;
 };
 
 export function useImportTransactionsMutation() {
@@ -272,6 +274,7 @@ export function useImportTransactionsMutation() {
       accountId,
       transactions,
       reconcile,
+      reimportDeleted,
     }: ImportTransactionsPayload) => {
       if (!reconcile) {
         await send('api/transactions-add', {
@@ -290,6 +293,7 @@ export function useImportTransactionsMutation() {
         accountId,
         transactions,
         isPreview: false,
+        opts: reimportDeleted !== undefined ? { reimportDeleted } : undefined,
       });
 
       errors.forEach(error => {
